@@ -5,7 +5,7 @@
 // --------------------------------------------------------------------
 //  Stoch X: Stochastic with Divergence & Signals
 //  On Github: https://github.com/realanthonyc/Stoch-X
-//  v1.1.7
+//  v1.1.8
 // --------------------------------------------------------------------
 indicator(title="Stoch X: Stochastic with Divergence & Signals", shorttitle="Stoch X", format=format.price, precision=1, timeframe="", timeframe_gaps=true)
 
@@ -49,7 +49,7 @@ d = ta.sma(k, periodD)
 
 // Dynamic Period Logic
 // 30 minutes = 1800 seconds
-// Logic handles Ticks/Range/Volume (na seconds) by defaulting to Regular (False on isLowTF)
+// Logic handles Ticks/Range/Volume (na seconds) by defaulting to Regular (false on isLowTF)
 currentSeconds = timeframe.in_seconds(timeframe.period)
 isLowTF = not na(currentSeconds) and currentSeconds <= 1800
 periodS_Dynamic = isLowTF ? periodS_Low : periodS
@@ -72,7 +72,7 @@ fill(h0, h1, color=color.rgb(33, 150, 243, 95), title="Background")
 
 // === Plotting: Cross Signals ===
 
-// Updated to use K2 and S for crossing logic
+// Use %K2 and %S for crossing logic
 bullCross = ta.crossover(k2, s) and k2 < valLower
 bearCross = ta.crossunder(k2, s) and k2 > valUpper
 
