@@ -5,36 +5,39 @@
 // --------------------------------------------------------------------
 //  Stoch X: Stochastic with Divergence & Signals
 //  On Github: https://github.com/realanthonyc/Stoch-X
-//  v1.1.2
+//  v1.1.6
 // --------------------------------------------------------------------
 indicator(title="Stoch X: Stochastic with Divergence & Signals", shorttitle="Stoch X", format=format.price, precision=1, timeframe="", timeframe_gaps=true)
 
 // === Inputs ===
 
 // Colors
-bearColor = color.new(color.red, 20)
-bullColor = color.new(color.green, 20)
+bearColor = color.new(color.red, 35)
+bullColor = color.new(color.green, 35)
 noneColor = color.new(color.white, 100)
 
-// Stochastic Settings
-grpStoch = "Stoch Settings"
-crossNote = "Cross signals occur when %K crosses %S outside the band. Increase the value for smoother, slower signals; decrease it for higher sensitivity."
-periodK   = input.int(14, title="%K", minval=1, group=grpStoch)
-smoothK   = input.int(1, title="%K Smoothing", minval=1, group=grpStoch)
-periodD   = input.int(3, title="%D", minval=1, group=grpStoch)
-periodS   = input.int(3, title="%S", minval=1, group=grpStoch, tooltip = crossNote)
-periodS_Low = input.int(5, title="%S for 30m or Below", minval=1, group=grpStoch, tooltip = "Less sensitive and more accurate signals for lower timeframes.")
-
-// Dynamic Band Settings
+// Settings
+grpStoch = "Settings"
+periodK = input.int(14, title="%K", minval=1, group=grpStoch)
+smoothK = input.int(1, title="%K Smoothing", minval=1, group=grpStoch, tooltip = "Keep it 1 for the best results of divergence dectection.")
+periodD = input.int(3, title="%D", minval=1, group=grpStoch)
 valUpper  = input.int(80, title="Upper Band Value", group=grpStoch)
 valLower  = input.int(20, title="Lower Band Value", group=grpStoch)
 
-// Cross Signal Plot Level
-valCrossLevel = input.int(-10, title="Cross Signals Plot Level", group=grpStoch, display = display.data_window)
+// Settings for Cross Signals
+grpStochCorss = "Settings for Cross Signals"
+crossNote1 = "Cross signals occur when %K2 crosses %S outside the band."
+crossNote2 = "Increase this value for smoother, slower signals; decrease it for higher sensitivity."
+crossNote3 = "Less sensitive and more accurate signals for lower timeframes"
+periodK2     = input.int(1, title="%K2", minval=1, group=grpStochCorss, tooltip = crossNote1, display = display.data_window)
+periodK2_Low = input.int(2, title="%K2 for 30m or Below", minval=1, group=grpStochCorss, display = display.data_window)
+periodS      = input.int(5, title="%S", minval=1, group=grpStochCorss, tooltip = crossNote2, display = display.data_window)
+periodS_Low  = input.int(6, title="%S for 30m or Below", minval=1, group=grpStochCorss, tooltip = "crossNote3", display = display.data_window)
+valCrossLevel = input.int(-10, title="Cross Signals Plot Level", group=grpStochCorss, display = display.data_window)
 
 // Divergence Settings
 grpDiv = "Divergence Settings"
-calculateDivergence = input.bool(true, title="Calculate Divergence", group=grpDiv, display = display.data_window)
+calculateDivergence = input.bool(true, title="Calculate Divergence", group=grpDiv, display = display.data_window, tooltip ="Base on %K")
 lookbackRight = input.int(5, title="Pivot Lookback Right", group=grpDiv, display = display.data_window)
 lookbackLeft  = input.int(5, title="Pivot Lookback Left", group=grpDiv, display = display.data_window)
 rangeUpper    = input.int(60, title="Max Lookback Range", group=grpDiv, display = display.data_window)
@@ -44,18 +47,22 @@ rangeLower    = input.int(5, title="Min Lookback Range", group=grpDiv, display =
 k = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
 d = ta.sma(k, periodD)
 
-// Dynamic Period Logic for %S Line
+// Dynamic Period Logic
 // 30 minutes = 1800 seconds
+// Logic handles Ticks/Range/Volume (na seconds) by defaulting to Regular (False on isLowTF)
 currentSeconds = timeframe.in_seconds(timeframe.period)
 isLowTF = not na(currentSeconds) and currentSeconds <= 1800
 periodS_Dynamic = isLowTF ? periodS_Low : periodS
+periodK2_Dynamic = isLowTF ? periodK2_Low : periodK2
 s  = ta.sma(k, periodS_Dynamic)
+k2 = ta.sma(k, periodK2_Dynamic) 
 
 // === Plotting: Stochastic Lines ===
 
-plot(k, title="%K", color=#2962FF)
-plot(d, title="%D", color=#FF6D00)
-plot(s, title="%S", color=color.new(color.teal, 30), linewidth=1)
+plot(k,  title="%K",  color=#2962FF)
+plot(k2, title="%K2", color=color.new(#9C27B0, 30), display=display.none)
+plot(d,  title="%D",  color=#FF6D00)
+plot(s,  title="%S",  color=color.new(#018383, 30), display=display.none)
 
 // Dynamic Band
 h0 = hline(valUpper, "Upper Band", color=color.new(#FFFFFF, 100), editable=false)
@@ -65,9 +72,9 @@ fill(h0, h1, color=color.rgb(33, 150, 243, 95), title="Background")
 
 // === Plotting: Cross Signals ===
 
-// Uses valUpper and valLower inputs dynamically
-bullCross = ta.crossover(k, s) and k < valLower
-bearCross = ta.crossunder(k, s) and k > valUpper
+// Updated to use K2 and S for crossing logic
+bullCross = ta.crossover(k2, s) and k2 < valLower
+bearCross = ta.crossunder(k2, s) and k2 > valUpper
 
 // Uses valCrossLevel for vertical positioning
 plotshape(bearCross ? valCrossLevel : na, title="Bearish Cross", style=shape.xcross, location=location.absolute, color=bearColor, size=size.tiny)
@@ -83,7 +90,7 @@ phFound = false
 bullCond = false
 bearCond = false
 
-// Source for pivots is K
+// Source for pivots remains K (Standard Divergence)
 srcLBR = k[lookbackRight]
 
 if calculateDivergence
@@ -95,7 +102,6 @@ if calculateDivergence
     lowLBR = low[lookbackRight]
     priceLL = lowLBR < ta.valuewhen(plFound, lowLBR, 1)
     bullCond := priceLL and oscHL and plFound
-
     // Regular Bearish
     // Osc: Lower High
     phFound := not na(ta.pivothigh(k, lookbackLeft, lookbackRight))
@@ -106,23 +112,8 @@ if calculateDivergence
     bearCond := priceHH and oscLH and phFound
 
 // Divergence Lines
-plot(
-     plFound   ? srcLBR : na,
-     offset    = -lookbackRight,
-     title     = "Regular Bullish",
-     linewidth = 1,
-     color     = (bullCond ? bullColor : noneColor),
-     display   = display.pane,
-     editable  = calculateDivergence)
-
-plot(
-     phFound   ? srcLBR : na,
-     offset    = -lookbackRight,
-     title     = "Regular Bearish",
-     linewidth = 1,
-     color     = (bearCond ? bearColor : noneColor),
-     display   = display.pane,
-     editable  = calculateDivergence)
+plot(plFound ? srcLBR : na, offset = -lookbackRight, title = "Regular Bullish", linewidth = 1, color = (bullCond ? bullColor : noneColor), display = display.pane, editable = calculateDivergence)
+plot(phFound ? srcLBR : na, offset = -lookbackRight, title = "Regular Bearish", linewidth = 1, color = (bearCond ? bearColor : noneColor), display = display.pane, editable = calculateDivergence)
 
 // === Alerts ===
 
